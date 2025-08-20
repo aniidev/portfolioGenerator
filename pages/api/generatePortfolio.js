@@ -1,10 +1,13 @@
 import { Groq } from "groq-sdk";
+
 const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY // make sure this is in .env.local
+  apiKey: process.env.GROQ_API_KEY
 });
+
 if (!globalThis.portfolios) {
   globalThis.portfolios = {};
 }
+
 const portfolios = globalThis.portfolios;
 
 export default async function handler(req, res) {
@@ -13,55 +16,62 @@ export default async function handler(req, res) {
   }
 
   const { resumeText, theme } = req.body;
-if (!resumeText || !theme) {
-  return res.status(400).json({ error: "Missing resumeText or theme" });
-}
+  
+  if (!resumeText || !theme) {
+    return res.status(400).json({ error: "Missing resumeText or theme" });
+  }
 
-const prompt = `
-Using the following resume text, create a complete single HTML portfolio page.
+  // MUCH SIMPLER, FOCUSED PROMPT
+  const prompt = `Create a professional portfolio website using this resume using the correct name it should be near the top of the prompt. Make it clean, modern, and visually appealing.
 
-Theme color: ${theme} (use Tailwind's ${theme}-500 for main buttons, headings, and accents).
+TECHNICAL SETUP:
+- Use Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
+- Use Font Awesome: <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+- Use Google Fonts: Pick ONE nice font and load it
 
-Font options: Montserrat, Poppins, Playfair Display, Raleway, Lobster, Lora, Fira Sans, Quicksand, Pacifico, Merriweather, Roboto, Open Sans, Lato, Source Sans Pro, Inter, Nunito, Oswald, PT Serif, DM Sans, Cabin.
-Pick one or two fonts that match the chosen theme and load via Google Fonts CDN.
+COLOR SCHEME:
+- Primary color: ${theme}-600 for headings and buttons
+-  backgrounds: ${theme}-50 and ${theme}-100  
 
-Libraries to include using official CDNs:
-- TailwindCSS: use <script src="https://cdn.tailwindcss.com"></script> (do NOT use <link>)
-- Font Awesome: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
-- AOS (Animate On Scroll): https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css and https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js
-- Hero Patterns: use subtle SVG backgrounds
+SECTIONS TO INCLUDE:
+1. Header with name and title
+1.5. An about section
+2. Experience section
+3. Projects section (if any mentioned)
+4. Skills section  
+5. Contact section with email/phone
 
-Design requirements:
-- MAKE SURE THE NAME IS CORRECT FIRST AND LAST NAME 
-- Clean, modern, minimal style with balanced whitespace.
-- Semantic HTML and responsive layout.
-- Automatically pick a cohesive color palette based on the theme for headings, buttons, backgrounds, and accents.
-- Include smooth hover animations, button hover states, and fade-in effects using AOS.
-- All hover/fade/interactivity must match the chosen theme and color palette.
+DESIGN RULES:
+- Mobile responsive
+- Clean spacing with proper padding/margins
+- Smooth hover effects on buttons and cards
+- Professional photo placeholder
+- Easy to read typography
+- Modern card-based layouts
 
-Functional requirements:
-- Include sections: About Me, Skills, Projects, Experience, Contact.
-- Tailwind must be loaded via <script> from CDN, not <link>.
-- All CSS and JS must be inline or from CDN so it works instantly.
-- Do NOT include triple backticks or \`\`\`html.
-- Do NOT include any explanations or comments outside the code.
-- Output must start immediately with <!DOCTYPE html>.
-- Output ONLY a complete HTML document.
-
-Resume Text:
-"""
+Make sure the person's name is extracted correctly from the resume spelled right.
+DONT INCLUDE IMAGES YOU DONT HAVE
+Resume:
 ${resumeText}
-"""
-`;
 
+Output only the complete HTML starting with <!DOCTYPE html>. No explanations.`;
 
   try {
     const chatCompletion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 1,
-      max_completion_tokens: 3000,
-      top_p: 1,
+      messages: [
+        {
+          role: "system", 
+          content: "You are a skilled web developer. Create clean, professional websites with good design sense. Focus on  usability."
+        },
+        { 
+          role: "user", 
+          content: prompt 
+        }
+      ],
+      temperature: 0.8,
+      max_completion_tokens: 3500,
+      top_p: 0.95,
       stream: true,
     });
 
@@ -71,8 +81,11 @@ ${resumeText}
     }
 
     res.status(200).json({ html });
+
   } catch (error) {
     console.error("Groq API error:", error.response?.data || error.message || error);
-    return res.status(500).json({ error: error.message || "Failed to generate portfolio" });
+    return res.status(500).json({ 
+      error: error.message || "Failed to generate portfolio"
+    });
   }
 }
