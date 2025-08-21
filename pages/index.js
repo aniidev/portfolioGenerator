@@ -6,6 +6,7 @@ export default function Home() {
   const [loadingGenerate, setLoadingGenerate] = useState(false);
   const [error, setError] = useState("");
   const [theme, setTheme] = useState("blue"); // default theme
+  const [customFeatures, setCustomFeatures] = useState("");
 
   async function handleGeneratePortfolio() {
     if (!file) {
@@ -39,7 +40,7 @@ export default function Home() {
       const genRes = await fetch("/api/generatePortfolio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText, theme }),
+        body: JSON.stringify({ resumeText, theme, customFeatures })
       });
 
       if (!genRes.ok) {
@@ -565,7 +566,27 @@ export default function Home() {
                 </div>
               </div>
             )}
-
+            {/* Custom Features Input */}
+      {file && (
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ color: "white", display: "block", marginBottom: "8px" }}>
+            Custom Features (optional):
+          </label>
+          <textarea
+            rows={4}
+            value={customFeatures}
+            onChange={(e) => setCustomFeatures(e.target.value)}
+            placeholder="e.g. Add a contact form, dark mode toggle, project gallery..."
+            style={{
+              width: "100%",
+              padding: "10px",
+              borderRadius: "6px",
+              border: "1px solid #374151",
+              resize: "vertical",
+            }}
+          />
+        </div>
+      )}
             {/* Step 3: Generate Portfolio */}
             {file && (
               <div style={styles.sectionMargin}>

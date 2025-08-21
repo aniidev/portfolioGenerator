@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { resumeText, theme } = req.body;
+  const { resumeText, theme, customFeatures } = req.body;
   
   if (!resumeText || !theme) {
     return res.status(400).json({ error: "Missing resumeText or theme" });
@@ -53,6 +53,7 @@ DESIGN RULES:
 
 Make sure the person's name is extracted correctly from the resume spelled right.
 DONT INCLUDE PROFILE PHOTO
+Also specifically implement: ${customFeatures}
 Resume:
 ${resumeText}
 
