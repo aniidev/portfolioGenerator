@@ -2,73 +2,55 @@ import { useState } from "react";
 
 export default function Home() {
   const [file, setFile] = useState(null);
-  const [resumeText, setResumeText] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
-  const [loadingParse, setLoadingParse] = useState(false);
   const [loadingGenerate, setLoadingGenerate] = useState(false);
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState("blue");
+  const [theme, setTheme] = useState("blue"); // default theme
 
-  // Upload and parse PDF to get text
-  async function handleParsePdf() {
+  async function handleGeneratePortfolio() {
     if (!file) {
       alert("Please select a PDF file first.");
       return;
     }
-    setLoadingParse(true);
-    setError("");
-    setGeneratedCode("");
-    setResumeText("");
 
-    const formData = new FormData();
-    formData.append("resume", file);
-
-    try {
-      const res = await fetch("/api/parseResume", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to parse PDF");
-      }
-
-      const data = await res.json();
-      setResumeText(data.text);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoadingParse(false);
-    }
-  }
-
-  // Send resume text to LLaMA 3 to generate portfolio code
-  async function handleGeneratePortfolio() {
-    if (!resumeText.trim()) {
-      alert("Parse a resume first to get the text.");
-      return;
-    }
     setLoadingGenerate(true);
     setError("");
     setGeneratedCode("");
 
     try {
-      const res = await fetch("/api/generatePortfolio", {
+      // Step 1: Parse the PDF (hidden from user)
+      const formData = new FormData();
+      formData.append("resume", file);
+
+      const parseRes = await fetch("/api/parseResume", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!parseRes.ok) {
+        const err = await parseRes.json();
+        throw new Error(err.error || "Failed to parse PDF");
+      }
+
+      const parseData = await parseRes.json();
+      const resumeText = parseData.text;
+
+      // Step 2: Generate Portfolio
+      const genRes = await fetch("/api/generatePortfolio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resumeText, theme }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
+      if (!genRes.ok) {
+        const err = await genRes.json();
         throw new Error(err.error || "Failed to generate portfolio");
       }
 
-      const data = await res.json();
+      const data = await genRes.json();
       setGeneratedCode(data.html);
 
-      // Open in new tab
+      // Open directly in new tab
       const blob = new Blob([data.html], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
@@ -506,322 +488,57 @@ export default function Home() {
 
   return (
     <>
-      <style jsx>{`
-        @keyframes floatPulse {
-          0%, 100% { 
-            opacity: 0.5; 
-            transform: translateY(0px) scale(1); 
-          }
-          33% { 
-            opacity: 0.8; 
-            transform: translateY(-20px) scale(1.1); 
-          }
-          66% { 
-            opacity: 0.6; 
-            transform: translateY(10px) scale(0.9); 
-          }
-        }
-        
-        @keyframes slowFloat {
-          0%, 100% { 
-            transform: translateY(0px) translateX(0px) scale(1); 
-            opacity: 0.4;
-          }
-          25% { 
-            transform: translateY(-15px) translateX(10px) scale(1.05); 
-            opacity: 0.6;
-          }
-          50% { 
-            transform: translateY(-30px) translateX(-5px) scale(0.95); 
-            opacity: 0.5;
-          }
-          75% { 
-            transform: translateY(-10px) translateX(-15px) scale(1.1); 
-            opacity: 0.7;
-          }
-        }
-        
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-        
-        @keyframes titleGlow {
-          0% { 
-            filter: brightness(1) drop-shadow(0 0 5px rgba(168, 85, 247, 0.3));
-          }
-          100% { 
-            filter: brightness(1.2) drop-shadow(0 0 20px rgba(168, 85, 247, 0.6));
-          }
-        }
-        
-        @keyframes cardFloat {
-          0%, 100% { 
-            transform: translateY(0px); 
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          }
-          50% { 
-            transform: translateY(-5px); 
-            box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.35);
-          }
-        }
-        
-        @keyframes featureFloat {
-          0%, 100% { 
-            transform: translateY(0px); 
-          }
-          50% { 
-            transform: translateY(-8px); 
-          }
-        }
-        
-        @keyframes particleFloat {
-          0% { 
-            transform: translateY(100vh) translateX(0px); 
-            opacity: 0;
-          }
-          10% { 
-            opacity: 1;
-          }
-          90% { 
-            opacity: 1;
-          }
-          100% { 
-            transform: translateY(-100px) translateX(50px); 
-            opacity: 0;
-          }
-        }
-        
-        @keyframes buttonPulse {
-          0%, 100% { 
-            box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.4);
-          }
-          50% { 
-            box-shadow: 0 0 0 10px rgba(147, 51, 234, 0);
-          }
-        }
-        
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        
-        .animated-button {
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .animated-button::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-          transition: left 0.5s;
-        }
-        
-        .animated-button:hover::before {
-          left: 100%;
-        }
-        
-        .theme-button {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .theme-button:hover {
-          transform: translateY(-4px) scale(1.05);
-        }
-        
-        input[type="file"] {
-          display: none;
-        }
-        *::-webkit-scrollbar {
-          width: 6px;
-        }
-        *::-webkit-scrollbar-track {
-          background: #1f2937;
-        }
-        *::-webkit-scrollbar-thumb {
-          background: #4b5563;
-          border-radius: 3px;
-        }
-      `}</style>
-      
       <div style={styles.container}>
-        {/* Background Elements */}
-        <div style={styles.backgroundOrbs}>
-          {/* Animated Grid Pattern */}
-          <div style={styles.gridPattern}></div>
-          
-          {/* Floating Particles */}
-          <div style={styles.particles}>
-            {Array.from({length: 15}).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  ...styles.particle,
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 20}s`,
-                  animation: `particleFloat ${15 + Math.random() * 10}s linear infinite`
-                }}
-              />
-            ))}
-          </div>
-          
-          {/* Glowing Orbs */}
-          <div style={styles.orb1}></div>
-          <div style={styles.orb2}></div>
-          <div style={styles.orb3}></div>
-          <div style={styles.orb4}></div>
-          <div style={styles.orb5}></div>
-        </div>
-
-        {/* Header */}
-        <header style={styles.header}>
-          <div style={styles.headerContent}>
-            <div style={styles.logo}>
-              <div style={styles.logoIcon}>PG</div>
-              <span style={styles.logoText}>Portfolio Generator</span>
-            </div>
-            <nav style={styles.nav}>
-              <a href="#" style={styles.navLink} 
-                 onMouseEnter={(e) => e.target.style.color = 'white'}
-                 onMouseLeave={(e) => e.target.style.color = '#d1d5db'}>
-                Home
-              </a>
-              <a href="#" style={styles.navLink}
-                 onMouseEnter={(e) => e.target.style.color = 'white'}
-                 onMouseLeave={(e) => e.target.style.color = '#d1d5db'}>
-                About
-              </a>
-              <a href="#" style={styles.navLink}
-                 onMouseEnter={(e) => e.target.style.color = 'white'}
-                 onMouseLeave={(e) => e.target.style.color = '#d1d5db'}>
-                Pricing
-              </a>
-              <a href="#" style={styles.navLink}
-                 onMouseEnter={(e) => e.target.style.color = 'white'}
-                 onMouseLeave={(e) => e.target.style.color = '#d1d5db'}>
-                Contact
-              </a>
-            </nav>
-            <button style={styles.getStartedBtn}
-                    onMouseEnter={(e) => e.target.style.background = 'linear-gradient(135deg, #7c3aed, #db2777)'}
-                    onMouseLeave={(e) => e.target.style.background = 'linear-gradient(135deg, #9333ea, #ec4899)'}>
-              Get Started
-            </button>
-          </div>
-        </header>
+        {/* Keep your background + header code the same */}
 
         {/* Main Content */}
         <main style={styles.main}>
-          {/* Hero Section */}
           <div style={styles.hero}>
             <h1 style={styles.heroTitle}>
-              AI
-              <br />
+              AI <br />
               <span style={styles.heroSubtitle}>Portfolio Generation</span>
-              <br />
-
             </h1>
             <p style={styles.heroDescription}>
-              Transform your resume into a stunning, professional portfolio website using advanced AI technology. 
+              Upload your resume and instantly get a professional portfolio website. 
               No coding required.
             </p>
           </div>
 
-          {/* Main Card */}
           <div style={styles.mainCard}>
-            
             {/* Step 1: File Upload */}
             <div style={styles.sectionMargin}>
               <h2 style={styles.stepHeader}>
-                <span style={{...styles.stepNumber, background: '#9333ea'}}>1</span>
+                <span style={{ ...styles.stepNumber, background: "#9333ea" }}>1</span>
                 Upload Your Resume
               </h2>
-              
-              <div style={{
-                ...styles.uploadArea,
-                borderColor: file ? '#9333ea' : '#374151'
-              }}
-                   onClick={() => document.getElementById('file-upload').click()}
-                   onMouseEnter={(e) => e.target.style.borderColor = '#6b21a8'}
-                   onMouseLeave={(e) => e.target.style.borderColor = file ? '#9333ea' : '#374151'}>
-                
+
+              <div
+                style={{
+                  ...styles.uploadArea,
+                  borderColor: file ? "#9333ea" : "#374151",
+                }}
+                onClick={() => document.getElementById("file-upload").click()}
+              >
                 <input
                   type="file"
-                  name="resume"
                   accept="application/pdf"
-                  onChange={(e) => setFile(e.target.files[0])}
                   id="file-upload"
+                  style={{ display: "none" }}
+                  onChange={(e) => setFile(e.target.files[0])}
                 />
-                
-                <div style={styles.uploadIcon}>
-                  <svg width="32" height="32" fill="none" stroke="#9ca3af" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-                <p style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px', color: 'white' }}>
-                  {file ? file.name : "Choose PDF file or drag and drop"}
+                <p style={{ fontSize: "18px", color: "white" }}>
+                  {file ? file.name : "Choose PDF file"}
                 </p>
-                <p style={{ color: '#9ca3af', fontSize: '14px' }}>PDF files only, up to 10MB</p>
               </div>
-
-              <button
-                onClick={handleParsePdf}
-                disabled={loadingParse || !file}
-                style={{
-                  ...styles.primaryButton,
-                  ...(loadingParse || !file ? styles.disabledButton : {})
-                }}
-                onMouseEnter={(e) => {
-                  if (!loadingParse && file) {
-                    e.target.style.background = 'linear-gradient(135deg, #7c3aed, #db2777)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!loadingParse && file) {
-                    e.target.style.background = 'linear-gradient(135deg, #9333ea, #ec4899)';
-                  }
-                }}
-              >
-                {loadingParse ? (
-                  <>
-                    <div style={styles.spinner}></div>
-                    Parsing PDF...
-                  </>
-                ) : (
-                  "Parse PDF Resume"
-                )}
-              </button>
             </div>
 
-            {/* Step 2: Resume Text Display */}
-            {resumeText && (
+            {/* Step 2: Theme Selection (optional — remove if you want auto theme) */}
+            {file && (
               <div style={styles.sectionMargin}>
                 <h2 style={styles.stepHeader}>
-                  <span style={{...styles.stepNumber, background: '#10b981'}}>2</span>
-                  Extracted Resume Content
-                </h2>
-                <textarea
-                  rows={8}
-                  readOnly
-                  value={resumeText}
-                  style={styles.textArea}
-                />
-              </div>
-            )}
-
-            {/* Step 3: Theme Selection */}
-            {resumeText && (
-              <div style={styles.sectionMargin}>
-                <h2 style={styles.stepHeader}>
-                  <span style={{...styles.stepNumber, background: '#3b82f6'}}>3</span>
+                  <span style={{ ...styles.stepNumber, background: "#3b82f6" }}>2</span>
                   Choose Portfolio Theme
                 </h2>
-                
                 <div style={styles.themeGrid}>
                   {themes.map((themeOption) => (
                     <button
@@ -829,174 +546,49 @@ export default function Home() {
                       onClick={() => setTheme(themeOption.value)}
                       style={{
                         ...styles.themeButton,
-                        ...(theme === themeOption.value ? styles.themeButtonSelected : {})
+                        ...(theme === themeOption.value
+                          ? styles.themeButtonSelected
+                          : {}),
                       }}
                     >
-                      <div style={{
-                        ...styles.themeColor,
-                        backgroundColor: themeOption.color
-                      }}></div>
-                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
+                      <div
+                        style={{
+                          ...styles.themeColor,
+                          backgroundColor: themeOption.color,
+                        }}
+                      />
+                      <p style={{ fontSize: "12px", color: "#9ca3af", margin: 0 }}>
                         {themeOption.name}
                       </p>
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
 
+            {/* Step 3: Generate Portfolio */}
+            {file && (
+              <div style={styles.sectionMargin}>
                 <button
                   onClick={handleGeneratePortfolio}
                   disabled={loadingGenerate}
-                  className="animated-button"
                   style={{
                     ...styles.primaryButton,
                     ...styles.primaryButtonLarge,
                     ...(loadingGenerate ? styles.disabledButton : {}),
-                    animation: loadingGenerate ? 'none' : 'buttonPulse 2s infinite'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loadingGenerate) {
-                      e.target.style.background = 'linear-gradient(135deg, #7c3aed, #db2777)';
-                      e.target.style.transform = 'translateY(-2px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!loadingGenerate) {
-                      e.target.style.background = 'linear-gradient(135deg, #9333ea, #ec4899)';
-                      e.target.style.transform = 'translateY(0px)';
-                    }
                   }}
                 >
-                  {loadingGenerate ? (
-                    <>
-                      <div style={{...styles.spinner, width: '24px', height: '24px'}}></div>
-                      Generating Portfolio...
-                    </>
-                  ) : (
-                    <>
-                      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      Generate AI Portfolio
-                    </>
-                  )}
+                  {loadingGenerate ? "Generating Portfolio..." : "Generate Portfolio"}
                 </button>
               </div>
             )}
 
-            {/* Error Display */}
+            {/* Error */}
             {error && (
               <div style={styles.errorBox}>
-                <svg width="20" height="20" fill="none" stroke="#f87171" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span style={{ color: '#fca5a5', fontWeight: '500' }}>Error: {error}</span>
+                <span style={{ color: "#fca5a5" }}>Error: {error}</span>
               </div>
             )}
-
-            {/* Generated Code Display */}
-            {generatedCode && (
-              <div style={styles.sectionMargin}>
-                <h2 style={styles.stepHeader}>
-                  <span style={{...styles.stepNumber, background: '#10b981'}}>4</span>
-                  Your Portfolio is Ready!
-                </h2>
-                
-                <div style={styles.codeContainer}>
-                  <div style={styles.codeHeader}>
-                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#d1d5db' }}>
-                      Generated HTML Code
-                    </span>
-                    <button 
-                      onClick={() => navigator.clipboard.writeText(generatedCode)}
-                      style={styles.copyButton}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = '#374151'}
-                    >
-                      Copy Code
-                    </button>
-                  </div>
-                  <pre style={styles.codeContent}>
-                    {generatedCode}
-                  </pre>
-                </div>
-
-                <div style={styles.buttonGroup}>
-                  <a
-                    href={`/viewPortfolio?code=${encodeURIComponent(generatedCode)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      ...styles.primaryButton,
-                      ...styles.primaryButtonLarge,
-                      textDecoration: 'none',
-                      flex: '1'
-                    }}
-                  >
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    View Live Portfolio
-                  </a>
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([generatedCode], { type: "text/html" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'portfolio.html';
-                      a.click();
-                    }}
-                    style={styles.secondaryButton}
-                    onMouseEnter={(e) => e.target.style.backgroundColor = '#4b5563'}
-                    onMouseLeave={(e) => e.target.style.backgroundColor = '#374151'}
-                  >
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Download
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Features Section */}
-          <div style={styles.featuresGrid}>
-            <div style={styles.featureCard}>
-              <div style={{...styles.featureIcon, background: 'rgba(168, 85, 247, 0.2)'}}>
-                <svg width="24" height="24" fill="none" stroke="#a855f7" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <h3 style={styles.featureTitle}>AI-Powered</h3>
-              <p style={styles.featureDescription}>
-                Advanced language models analyze your resume and create personalized portfolio websites.
-              </p>
-            </div>
-
-            <div style={styles.featureCard}>
-              <div style={{...styles.featureIcon, background: 'rgba(236, 72, 153, 0.2)'}}>
-                <svg width="24" height="24" fill="none" stroke="#ec4899" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </div>
-              <h3 style={styles.featureTitle}>Beautiful Themes</h3>
-              <p style={styles.featureDescription}>
-                Choose from carefully crafted color themes that make your portfolio stand out.
-              </p>
-            </div>
-
-            <div style={styles.featureCard}>
-              <div style={{...styles.featureIcon, background: 'rgba(59, 130, 246, 0.2)'}}>
-                <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 style={styles.featureTitle}>Instant Generation</h3>
-              <p style={styles.featureDescription}>
-                Get your complete portfolio website in seconds, ready to deploy anywhere.
-              </p>
-            </div>
           </div>
         </main>
       </div>

@@ -30,8 +30,8 @@ TECHNICAL SETUP:
 - Use Google Fonts: Pick ONE nice font and load it
 
 COLOR SCHEME:
-- Primary color: ${theme}-600 for headings and buttons
--  backgrounds: ${theme}-50 and ${theme}-100  
+- Use the theme of: ${theme}
+- Add other colors you see fit
 
 SECTIONS TO INCLUDE:
 1. Header with name and title
@@ -48,9 +48,11 @@ DESIGN RULES:
 - Professional photo placeholder
 - Easy to read typography
 - Modern card-based layouts
+- Use interactivity like hover
+- Use animations
 
 Make sure the person's name is extracted correctly from the resume spelled right.
-DONT INCLUDE IMAGES YOU DONT HAVE
+DONT INCLUDE PROFILE PHOTO
 Resume:
 ${resumeText}
 
@@ -58,7 +60,7 @@ Output only the complete HTML starting with <!DOCTYPE html>. No explanations.`;
 
   try {
     const chatCompletion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [
         {
           role: "system", 
