@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { signIn, useSession, signOut} from "next-auth/react";
 
 export default function Home() {
   const [file, setFile] = useState(null);
@@ -7,6 +8,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [theme, setTheme] = useState("blue"); // default theme
   const [customFeatures, setCustomFeatures] = useState("");
+  const { data: session } = useSession();
 
   async function handleGeneratePortfolio() {
     if (!file) {
@@ -59,6 +61,30 @@ export default function Home() {
       setError(err.message);
     } finally {
       setLoadingGenerate(false);
+    }
+  }
+
+    async function handleDeployToGitHub() {
+    if (!session) {
+      alert("Please log in with GitHub first!");
+      signIn("github");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/deployToGitHub", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: generatedCode }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      alert(`✅ Portfolio live: ${data.url}`);
+      window.open(data.url, "_blank");
+    } catch (err) {
+      alert("❌ Deployment failed: " + err.message);
     }
   }
 
@@ -488,7 +514,18 @@ export default function Home() {
   ];
 
   return (
+    
     <>
+    <div>
+      {!session ? (
+        <button onClick={() => signIn("github")}>Sign in with GitHub</button>
+      ) : (
+        <>
+          <p>Signed in as {session.user.name}</p>
+          <button onClick={() => signOut()}>Sign out</button>
+        </>
+      )}
+    </div>
       <div style={styles.container}>
         {/* Keep your background + header code the same */}
 
@@ -611,6 +648,19 @@ export default function Home() {
               </div>
             )}
           </div>
+          {generatedCode && (
+  <div style={{ marginTop: "20px" }}>
+    <button
+      onClick={handleDeployToGitHub}
+      style={{
+        ...styles.primaryButton,
+        backgroundColor: "#24292f", 
+      }}
+    >
+      🚀 Deploy to GitHub
+    </button>
+  </div>
+)}
         </main>
       </div>
     </>
