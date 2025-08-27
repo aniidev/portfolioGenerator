@@ -5,6 +5,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   const session = await getServerSession(req, res, authOptions);
+
   if (!session || !session.accessToken) {
     return res.status(401).json({ error: "Not authenticated" });
   }
@@ -19,19 +20,15 @@ export default async function handler(req, res) {
     });
     const user = await userRes.json();
 
-    // Generate a unique repo name
-    const repoName = `portfolio-${Date.now()}`;
-
     // 2. Create repo
     const repoRes = await fetch("https://api.github.com/user/repos", {
       method: "POST",
       headers: {
         Authorization: `token ${accessToken}`,
         "Content-Type": "application/json",
-        Accept: "application/vnd.github+json",
       },
       body: JSON.stringify({
-        name: repoName,
+        name: "portfolioSite",
         auto_init: true,
         private: false,
       }),
@@ -44,7 +41,7 @@ export default async function handler(req, res) {
 
     // 3. Upload index.html
     await fetch(
-      `https://api.github.com/repos/${user.login}/${repoName}/contents/index.html`,
+      `https://api.github.com/repos/${user.login}/portfolioSite/contents/index.html`,
       {
         method: "PUT",
         headers: {
@@ -58,15 +55,14 @@ export default async function handler(req, res) {
       }
     );
 
-    // 4. Enable GitHub Pages (branch: main, root path)
+    // 4. Enable GitHub Pages
     await fetch(
-      `https://api.github.com/repos/${user.login}/${repoName}/pages`,
+      `https://api.github.com/repos/${user.login}/portfolioSite/pages`,
       {
-        method: "PUT", // use PUT instead of POST
+        method: "POST",
         headers: {
           Authorization: `token ${accessToken}`,
           "Content-Type": "application/json",
-          Accept: "application/vnd.github+json",
         },
         body: JSON.stringify({
           source: { branch: "main", path: "/" },
@@ -74,7 +70,7 @@ export default async function handler(req, res) {
       }
     );
 
-    const url = `https://${user.login}.github.io/${repoName}`;
+    const url = `https://${user.login}.github.io/portfolioSite`;
     res.status(200).json({ url });
   } catch (err) {
     res.status(500).json({ error: err.message });

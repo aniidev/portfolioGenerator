@@ -695,7 +695,7 @@ export default function Home() {
                 rows={4}
                 value={customFeatures}
                 onChange={(e) => setCustomFeatures(e.target.value)}
-                placeholder="e.g. Add a contact form, dark mode toggle, project gallery..."
+                placeholder="A dark mode toggle, project gallery, etc."
                 style={{
                   width: "100%",
                   padding: "10px",
