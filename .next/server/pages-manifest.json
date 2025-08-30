@@ -3,6 +3,7 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
+  "/api/parseResume": "pages/api/parseResume.js",
   "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
-  "/api/deployToGitHub": "pages/api/deployToGitHub.js"
+  "/api/generatePortfolio": "pages/api/generatePortfolio.js"
 }
