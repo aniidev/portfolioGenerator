@@ -652,7 +652,7 @@ return (
                 Custom Features
               </h2>
               <label style={styles.inputLabel}>
-                Additional features for your portfolio (optional):
+                Additional feacatures for your portfolio (optional):
               </label>
               <textarea
                 rows={4}
