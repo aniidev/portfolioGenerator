@@ -1,4 +1,10 @@
 {
+  "components\\premium\\PortfolioRenderer.jsx -> lenis": {
+    "id": "components\\premium\\PortfolioRenderer.jsx -> lenis",
+    "files": [
+      "static/chunks/_pages-dir-browser_node_modules_lenis_dist_lenis_mjs.js"
+    ]
+  },
   "node_modules\\next\\dist\\client\\index.js -> ../pages/_app": {
     "id": "node_modules\\next\\dist\\client\\index.js -> ../pages/_app",
     "files": [

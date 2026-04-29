@@ -42,7 +42,7 @@ export default function Home() {
       const genRes = await fetch("/api/generatePortfolio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resumeText, theme, customFeatures })
+        body: JSON.stringify({ resumeText, customFeatures })
       });
 
       if (!genRes.ok) {
@@ -51,12 +51,16 @@ export default function Home() {
       }
 
       const data = await genRes.json();
-      setGeneratedCode(data.html);
 
-      // Open directly in new tab
-      const blob = new Blob([data.html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      // Store blueprint for the portfolio page renderer
+      sessionStorage.setItem('portfolioBlueprint', JSON.stringify(data.blueprint));
+      sessionStorage.setItem('portfolioTheme',     data.theme || 'sleek_engineer');
+
+      // Keep generatedCode set so the deploy button stays available
+      setGeneratedCode(JSON.stringify(data.blueprint));
+
+      // Open the premium React portfolio in a new tab
+      window.open('/portfolio', '_blank');
     } catch (err) {
       setError(err.message);
     } finally {
