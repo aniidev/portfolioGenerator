@@ -2,6 +2,44 @@ import { Groq } from "groq-sdk";
 import { buildSemanticChunks, retrieveByType } from "../../lib/ragUtils";
 import { selectVisualStyle } from "../../lib/widgets";
 
+/**
+ * Escapes control characters that appear inside JSON string values.
+ * Uses a character-by-character state machine so it never touches
+ * the structural whitespace between fields — only string contents.
+ */
+function safeJsonParse(raw) {
+  // First try the fast path — most responses are fine
+  try { return JSON.parse(raw); } catch (_) {}
+
+  // Sanitise: walk the string, track whether we're inside a JSON string,
+  // and escape any bare control characters found there.
+  let out = "";
+  let inStr = false;
+  let escaped = false;
+
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+
+    if (escaped) { out += c; escaped = false; continue; }
+
+    if (c === "\\" && inStr) { out += c; escaped = true; continue; }
+
+    if (c === '"') { inStr = !inStr; out += c; continue; }
+
+    if (inStr) {
+      const code = c.charCodeAt(0);
+      if      (c === "\n") { out += "\\n";  continue; }
+      else if (c === "\r") { out += "\\r";  continue; }
+      else if (c === "\t") { out += "\\t";  continue; }
+      else if (code < 0x20) continue; // drop other control chars
+    }
+
+    out += c;
+  }
+
+  return JSON.parse(out);
+}
+
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -120,7 +158,7 @@ ${resumeText}`,
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Structuring LLM returned no JSON");
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = safeJsonParse(jsonMatch[0]);
 
   // Deterministic safety net: if the LLM still put an email/URL/handle in the
   // name field, replace it with the pre-extracted name from the raw text.
@@ -193,7 +231,7 @@ Return ONLY a JSON object with these exact keys: about, experience, projects, sk
   const raw = completion.choices[0]?.message?.content || "{}";
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Section generation returned no JSON");
-  return JSON.parse(jsonMatch[0]);
+  return safeJsonParse(jsonMatch[0]);
 }
 
 // Safely converts any LLM section value (string | object | array) to a plain string
@@ -243,9 +281,9 @@ async function assemblePortfolioHtml(sectionTexts, structuredResume, theme, cust
   const phone = p.phone || "";
 
   const tc    = THEME_COLORS[theme] || THEME_COLORS.purple;
-  const style = selectVisualStyle(theme);          // theme drives the visual style
-  const designSpec = style.describe(tc.primary, tc.secondary, tc.bg1, tc.bg2);
-  const selectedFont = style.selectedFont || style.fonts[0];
+  const style = selectVisualStyle(theme);
+  const css   = style.css(tc.primary, tc.secondary, tc.bg1, tc.bg2);
+  const brief = style.describe(tc.primary, tc.secondary, tc.bg1, tc.bg2);
 
   const contentBlock = SECTIONS.map(s => {
     const raw  = sectionTexts[s.name];
@@ -253,64 +291,67 @@ async function assemblePortfolioHtml(sectionTexts, structuredResume, theme, cust
     return `=== ${s.name.toUpperCase()} ===\n${text}`;
   }).join("\n\n");
 
-  const prompt = `You are a senior UI/UX designer and creative developer building a one-of-a-kind portfolio website.
+  const prompt = `Build a portfolio website using the design system provided. Write clean HTML that uses the pre-built CSS classes.
 
-You have a strong point of view. You make creative decisions. You do NOT copy templates.
-The creative brief below is your inspiration — interpret it, push it, make it your own.
-Every design choice you make should feel intentional and surprising in a good way.
-
-⚠ MANDATORY COLOR — the user chose this, it MUST appear prominently:
-  Primary:   ${tc.primary}
-  Secondary: ${tc.secondary}
-Use these exact hex values for headings, highlights, borders, buttons, badges, or gradient fills.
-Do NOT substitute different colors. The user's color choice must be clearly visible throughout the page.
-
-=== PORTFOLIO CONTENT (these are the only facts you may use) ===
+⚠ CONTENT — use ONLY these facts. Do not add or invent anything:
 ${contentBlock}
 Contact: ${email}${phone ? " | " + phone : ""}
-=============================================================
 
-=== LIBRARIES — include all of these in <head> ===
-<script src="https://cdn.tailwindcss.com"></script>
-${style.extraLibs}
+━━━ REQUIRED <head> ━━━
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${name} — Portfolio</title>
+${style.fonts}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-${selectedFont}
+<style>
+${css}
+</style>
 
-=== CREATIVE BRIEF — your design direction ===
-${designSpec}
+━━━ DESIGN BRIEF ━━━
+${brief}
 
-=== CONTENT SECTIONS (all must appear, order and presentation are your creative call) ===
-- Navigation
-- Hero (name, role, contact)
-- About
-- Experience (all roles)
-- Projects (all projects with tech and descriptions)
-- Skills (all skills)
-- Education
-- Contact / Footer
-${customFeatures ? `- Extra feature: ${customFeatures}` : ""}
+━━━ CSS CLASS REFERENCE ━━━
+nav / .nav-name / .nav-links    → fixed navigation
+.container                       → centered max-width wrapper (wrap every section body in this)
+.hero / .hero-name / .hero-title / .hero-contact  → hero section elements
+.card / .card-grid               → content card and auto-fill grid
+.section-heading / .section-label → section title and label
+.timeline / .timeline-item / .timeline-company / .timeline-role / .timeline-date → experience
+.badge / .badges                 → skill pill and container
+.btn / .btn-outline              → buttons and links
+.muted / .text-sm                → text utilities
+.reveal / .reveal-delay-1/2/3    → scroll animations (add to every card and heading)
 
-=== NON-NEGOTIABLE RULES ===
-1. Content is final: do not invent names, companies, roles, projects, skills, or metrics.
-2. Every content section above must appear somewhere in the output.
-3. No placeholder text. No lorem ipsum. No "coming soon". No fake avatar images.
-4. Mobile responsive — works on small screens.
-5. Add this at end of body: <script>${style.aosInit}</script>
-6. html { scroll-behavior: smooth; }
+━━━ REQUIRED PAGE SECTIONS ━━━
+1. <nav> with .nav-name and .nav-links (About · Experience · Projects · Skills · Education · Contact)
+2. <section id="hero" class="hero"> — name, title, contact buttons
+3. <section id="about"> — about text in a .card
+4. <section id="experience"> — .timeline with one .timeline-item per role
+5. <section id="projects"> — .card-grid, one .card per project with .badges for tech stack
+6. <section id="skills"> — skills by category with .badges
+7. <section id="education"> — education in a .card
+8. <footer id="contact"> — email and phone as <a> links
+${customFeatures ? `9. ${customFeatures}` : ""}
 
-Now build something genuinely impressive. Output ONLY the complete <!DOCTYPE html> document.`;
+━━━ RULES ━━━
+- Do NOT invent any content not in the CONTENT block above.
+- Add class="reveal" to every .card, .timeline-item, section heading.
+- No lorem ipsum. No placeholder text. No avatar images.
+- Every section must appear.
+- End of <body>: <script>${style.js}</script>
+
+Output ONLY the complete <!DOCTYPE html> document. No markdown.`;
 
   const chatCompletion = await groq.chat.completions.create({
     model: HTML_MODEL,
     messages: [
       {
         role: "system",
-        content:
-          "You are a senior UI/UX designer and creative developer with strong personal taste. You build portfolio websites that are genuinely unique — not templates. You interpret a creative brief and make your own design decisions. You never copy patterns verbatim; you execute the feeling and aesthetic in your own way. The content you are given is factual and final — your job is to present it beautifully and memorably, not to rewrite it.",
+        content: "You are a skilled web developer. You receive a complete CSS design system and content, and write clean semantic HTML that uses the provided CSS classes exactly as documented. You do not invent content or add inline styles that conflict with the design system.",
       },
       { role: "user", content: prompt },
     ],
-    temperature: 0.5,
+    temperature: 0.3,
     max_completion_tokens: 4096,
     stream: true,
   });
