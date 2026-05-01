@@ -963,6 +963,7 @@ function Footer() {
 
 const GALLERY = [
   {
+    slug: "alex",
     name: "Alex Chen",
     role: "ML Engineer",
     domain: "alex-chen.dev",
@@ -1023,6 +1024,7 @@ const GALLERY = [
     },
   },
   {
+    slug: "maya",
     name: "Maya Rodriguez",
     role: "Product Designer",
     domain: "maya.design",
@@ -1082,6 +1084,7 @@ const GALLERY = [
     },
   },
   {
+    slug: "jordan",
     name: "Jordan Kim",
     role: "Full-stack Developer",
     domain: "jordankim.io",
@@ -1140,6 +1143,7 @@ const GALLERY = [
     },
   },
   {
+    slug: "sam",
     name: "Sam Patel",
     role: "DevOps Engineer",
     domain: "samp.sh",
@@ -1201,14 +1205,8 @@ const GALLERY = [
 
 function openDemo(p) {
   if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem("portfolioBlueprint", JSON.stringify(p.blueprint));
-    sessionStorage.setItem("portfolioTheme", p.themeId);
-    window.open("/portfolio", "_blank", "noopener,noreferrer");
-  } catch (e) {
-    // sessionStorage can fail in private mode — fail silently
-    window.open("/portfolio", "_blank", "noopener,noreferrer");
-  }
+  // Pass demo via URL query — survives the new tab (sessionStorage doesn't).
+  window.open(`/portfolio?demo=${encodeURIComponent(p.slug)}`, "_blank", "noopener,noreferrer");
 }
 
 function PreviewCard(p) {
